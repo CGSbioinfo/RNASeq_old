@@ -3,9 +3,13 @@ RNASeq analysis pipeline
 Requirments: trim galore, FASTQC, STAR, HTSEQ, RNASeqQC, Picard tools
 Pipeline for the analysis of RNASeq data. It is divided in several python scripts.
 Each script perform one step:
+
 1) Prepare the folder for the rest of the analysis
-2) Trim reads and perform fastqc on the data *require fastqc_plot_data.py (should be in "additionalScripts" folder)
+
+2) Trim reads and perform fastqc on the data *require fastqc_plot_data.py (should be in "Scripts/AdditionalScripts" folder)
+
 3) Map the reads
+
 4) count the read
 
 The "small" version is for small rna seq library.
