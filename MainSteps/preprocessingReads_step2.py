@@ -35,6 +35,36 @@ def get_filepaths(directory):
 
     return file_paths
 
+def preprocessing(i):
+    allFiles = os.listdir("./rawReads/" + i )
+    pairedReads_temp = [allFiles[y] for y, x in enumerate(allFiles) if re.findall("_R2_", x)]
+   # os.system("fastqc ./rawReads/" + i + "/" + i + "_R1_*.fastq" + gz + " --outdir=rawReads/" + i)
+   # os.system("unzip ./rawReads/" + i + "/" + i + "_R1_*_fastqc.zip -d rawReads/" + i + "/")
+    if pairedReads_temp:
+        os.system("fastqc ./rawReads/" + i + "/" + i + "_R2_*.fastq" + gz + " --outdir=rawReads/" + i)
+        os.system("unzip ./rawReads/" + i + "/" + i + "_R2_*_fastqc.zip -d rawReads/" + i + "/")
+        os.system("trim_galore --paired --retain_unpaired --output_dir trimmedReads/ " + 'rawReads/' + i + "/" + i + "_R1_*.fastq" + gz + " rawReads/" + i + "/" + i + "_R2_*.fastq" + gz)
+        os.system("fastqc "+path+"/trimmedReads/"+i+"_R1_*val_1_fastqc.zip")
+        os.system("fastqc "+path+"/trimmedReads/"+i+"_R2_*val_2_fastqc.zip")
+        os.system("unzip "+path+"/trimmedReads/" + i + "_R1_*val_1_fastqc.zip -d trimmedReads/")
+        os.system("unzip "+path+"/trimmedReads/" + i + "_R2_*val_2_fastqc.zip -d trimmedReads/")
+    else:
+        os.system("trim_galore --output_dir trimmedReads/ rawReads/" + i + "/" + i + "_R1_*.fastq" + gz)
+        os.system("fastqc trimmedReads/" + i + "_R1_*_trimmed_fastqc.zip")
+        os.system("unzip trimmedReads/" + i + "_R1_*_trimmed_fastqc.zip -d trimmedReads/")
+    logging.info("Preprocessing done for sample " + i)
+
+def tables(i):
+    os.system('additionalScripts/fastqc_plot_data.py ./rawReads/' + i + '/' + i + '_R1_*fastqc/fastqc_data.txt all ./rawReads/' + i + '/' + i + '_R1_*fastqc/')
+    allFiles = os.listdir("./rawReads/" + i )
+    pairedReads_temp = [allFiles[y] for y, x in enumerate(allFiles) if re.findall("_R2_", x)]
+    if pairedReads_temp:
+        os.system('additionalScripts/fastqc_plot_data.py ./rawReads/' + i + '/' + i + '_R2_*fastqc/fastqc_data.txt all ./rawReads/' + i + '/' + i + '_R2_*fastqc/')
+        os.system('additionalScripts/fastqc_plot_data.py ./trimmedReads/' + i + '_R1_*val_1_fastqc/fastqc_data.txt all ./trimmedReads/' + i + '_R1_*val_1_fastqc/')
+        os.system('additionalScripts/fastqc_plot_data.py ./trimmedReads/' + i + '_R2_*val_2_fastqc/fastqc_data.txt all ./trimmedReads/' + i + '_R2_*val_2_fastqc/')
+    else:
+        os.system('additionalScripts/fastqc_plot_data.py ./trimmedReads/' + i + '_R1_*trimmed_fastqc/fastqc_data.txt all ./trimmedReads/' + i + '_R1_*trimmed_fastqc/')
+
 ###################
 #  * Rscripts used:
 # preprocessing_numbers.R
@@ -102,9 +132,11 @@ for line in sample_names_file:
 
 # Check if trimmed files exist, might be removed
 trimmedFiles = []
-for root, dir, files in os.walk('./trimmedReads/'):
-   trimmedFiles.extend(files)
+for root, dir, files in os.walk(path+'/trimmedReads/'):
+  trimmedFiles.extend(files)
 indicesTrimmedFiles = [trimmedFiles[i] for i, x in enumerate(trimmedFiles) if re.findall(".fastq.gz", x)]
+
+
 
 # Check if input files are uncompressed or .gz, at this point all files should be compressed and NOT SPLITTED BY LANE
 readFiles = []
@@ -130,26 +162,12 @@ logging.info("TrimGalore version: "+ str(version))
 version=subprocess.check_output('cutadapt --version ', shell=True).strip()
 logging.info("cutadapt version: "+ str(version))
 make_sure_path_exists("./trimmedReads")
-def preprocessing(i):
-    allFiles = os.listdir("./rawReads/" + i )
-    pairedReads_temp = [allFiles[y] for y, x in enumerate(allFiles) if re.findall("_R2_", x)]
-    os.system("fastqc ./rawReads/" + i + "/" + i + "_R1_*.fastq" + gz + " --outdir=rawReads/" + i)
-    os.system("unzip ./rawReads/" + i + "/" + i + "_R1_*_fastqc.zip -d rawReads/" + i + "/")
-    if pairedReads_temp:
-        os.system("fastqc ./rawReads/" + i + "/" + i + "_R2_*.fastq" + gz + " --outdir=rawReads/" + i)
-        os.system("unzip ./rawReads/" + i + "/" + i + "_R2_*_fastqc.zip -d rawReads/" + i + "/")
-        os.system("trim_galore --paired --retain_unpaired --fastqc --output_dir trimmedReads/ " + 'rawReads/' + i + "/" + i + "_R1_*.fastq" + gz + " rawReads/" + i + "/" + i + "_R2_*.fastq" + gz)
-        os.system("unzip trimmedReads/" + i + "_R1_*val_1_fastqc.zip -d trimmedReads/")
-        os.system("unzip trimmedReads/" + i + "_R2_*val_2_fastqc.zip -d trimmedReads/")
-    else:
-        os.system("trim_galore --fastqc --output_dir trimmedReads/ rawReads/" + i + "/" + i + "_R1_*.fastq" + gz)
-        os.system("unzip trimmedReads/" + i + "_R1_*_trimmed_fastqc.zip -d trimmedReads/")
-    logging.info("Preprocessing done for sample " + i)
 
 # Running jobs
-if not indicesTrimmedFiles:
-	Parallel(n_jobs=7)(delayed(preprocessing)(i) for i in sampleNames)
-
+#if not indicesTrimmedFiles:
+print("preprocessing")
+Parallel(n_jobs=7)(delayed(preprocessing)(i) for i in sampleNames)
+print("end preprocessing")
 logging.info(" ")
 logging.info(" ")
 logging.info("#################################")
@@ -159,16 +177,6 @@ os.system("preprocessing_numbers.R .")
 os.system("trimgalore_summary.R .")
 
 # Create files from fastqc_data.txt for creating plots (used in the Report)
-def tables(i):
-    os.system('fastqc_plot_data.py ./rawReads/' + i + '/' + i + '_R1_*fastqc/fastqc_data.txt all ./rawReads/' + i + '/' + i + '_R1_*fastqc/')
-    allFiles = os.listdir("./rawReads/" + i )
-    pairedReads_temp = [allFiles[y] for y, x in enumerate(allFiles) if re.findall("_R2_", x)]
-    if pairedReads_temp:
-        os.system('fastqc_plot_data.py ./rawReads/' + i + '/' + i + '_R2_*fastqc/fastqc_data.txt all ./rawReads/' + i + '/' + i + '_R2_*fastqc/')
-        os.system('fastqc_plot_data.py ./trimmedReads/' + i + '_R1_*val_1_fastqc/fastqc_data.txt all ./trimmedReads/' + i + '_R1_*val_1_fastqc/')
-        os.system('fastqc_plot_data.py ./trimmedReads/' + i + '_R2_*val_2_fastqc/fastqc_data.txt all ./trimmedReads/' + i + '_R2_*val_2_fastqc/')
-    else:
-        os.system('fastqc_plot_data.py ./trimmedReads/' + i + '_R1_*trimmed_fastqc/fastqc_data.txt all ./trimmedReads/' + i + '_R1_*trimmed_fastqc/')
 Parallel(n_jobs=8)(delayed(tables)(i) for i in sampleNames)
 
 os.system('ls rawReads/*/*fastqc  |  grep -v trimmed  | grep ":"  | sed \'s/://g\' > sample_names2.txt')
